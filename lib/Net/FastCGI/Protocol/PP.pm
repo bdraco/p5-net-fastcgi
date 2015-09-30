@@ -274,13 +274,19 @@ sub build_params {
     @_ == 1 || throw(q/Usage: build_params(params)/);
     my ($params) = @_;
     my $res = '';
-    while (my ($key, $val) = each(%$params)) {
-        for ($key, $val) {
-            my $len = defined $_ ? length : 0;
-            $res .= $len < 0x80 ? pack('C', $len) : pack('N', $len | 0x8000_0000);
+    while ( my ( $key, $value ) = each(%$params) ) {
+        if ( length $key < 0x80 && length $value < 0x80 ) {
+            $res .= pack( 'CC', length $key, length $value ) . $key . $value;
         }
-        $res .= $key;
-        $res .= $val if defined $val;
+        elsif ( length $value >= 0x80 ) {
+            $res .= pack( 'CN', length $key, length($value) | 0x8000_0000 ) . $key . $value;
+        }
+        elsif ( length $key >= 0x80 ) {
+            $res .= pack( 'NC', length($key) | 0x8000_0000, length $value ) . $key . $value;
+        }
+        else {
+            $res .= pack( 'NN', length($key) | 0x8000_0000, length($value) | 0x8000_0000 ) . $key . $value;
+        }
     }
     return $res;
 }
